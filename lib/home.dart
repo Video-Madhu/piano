@@ -85,14 +85,14 @@ final Map<LogicalKeyboardKey, int> _keyMap = {
 
 // ─── Entry widget ─────────────────────────────────────────────────────────────
 
-class MyPiano extends StatefulWidget {
-  const MyPiano({super.key});
+class OldPiano extends StatefulWidget {
+  const OldPiano({super.key});
 
   @override
-  State<MyPiano> createState() => _MyPianoState();
+  State<OldPiano> createState() => _OldPianoState();
 }
 
-class _MyPianoState extends State<MyPiano> {
+class _OldPianoState extends State<OldPiano> {
   final _soloud = SoLoud.instance;
   final Map<int, SoundHandle> _activeHandles = {};
   List<AudioSource>? _notes;

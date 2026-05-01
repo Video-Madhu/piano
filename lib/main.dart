@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
-import 'package:piano/home.dart';
+import 'package:piano/my_piano.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
