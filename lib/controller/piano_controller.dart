@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:get/get.dart';
-import 'package:piano/soloud_tools.dart';
+import 'package:piano/soLoud_tools.dart';
 
 /// Holds both handles for one active (pressed) note.
 class _ActiveNote {
@@ -27,9 +27,9 @@ class PianoController extends GetxController {
   final Map<int, _ActiveNote> _active = {};
 
   // ADSR timings
-  static const _attackMs = 8; // ms — fast piano-like attack
+  static const _attackMs = 15; // ms — fast piano-like attack
   static const _decayMs = 200; // ms — natural fall after peak
-  static const _sustainLv = 0.55; // 0..1 — level after decay
+  static const _sustainLv = 0.75; // 0..1 — level after decay
   // release is dynamic: sustain toggle changes it (see stop())
 
   @override
@@ -69,13 +69,13 @@ class PianoController extends GetxController {
 
     // ── Triangle: loud (body of the note) ──────────────────────────────────
     // volume = velocity * masterVolume * 0.75 (triangle is the main layer)
-    final triVol = velocity * volume.value * 0.75;
+    final triVol = velocity * volume.value * 1;
     final triHandle = _soloud.play(pool.triangle, volume: 0); // start silent
     _applyAdsr(triHandle, triVol);
 
     // ── Sine: quieter (adds shimmer/brightness) ─────────────────────────────
     // Soft notes have less high-harmonic content — velocity² roll-off
-    final sineVol = pow(velocity, 2).toDouble() * volume.value * 0.30;
+    final sineVol = pow(velocity, 2).toDouble() * volume.value * 0.5;
     final sineHandle = _soloud.play(pool.sine, volume: 0);
     _applyAdsr(sineHandle, sineVol);
 

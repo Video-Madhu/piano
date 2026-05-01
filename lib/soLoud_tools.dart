@@ -25,12 +25,7 @@ class MySoLoudTools {
         final freq = (baseFreq * pow(2, i / semitones)).toDouble();
 
         // ── Triangle layer (warm body) ──────────────────────────────────
-        final tri = await soloud.loadWaveform(
-          WaveForm.triangle,
-          true,
-          0.25,
-          1.0,
-        );
+        final tri = await soloud.loadWaveform(WaveForm.triangle, true, 1, 1.0);
         soloud.setWaveformFreq(tri, freq);
         soloud.setWaveformSuperWave(tri, false);
 
@@ -42,7 +37,7 @@ class MySoLoudTools {
         // tri.filters.freeverbFilter.dry().value = 1.0;
 
         // ── Sine layer (harmonic shimmer, one octave up) ────────────────
-        final sine = await soloud.loadWaveform(WaveForm.sin, true, 0.25, 1.0);
+        final sine = await soloud.loadWaveform(WaveForm.sin, true, 1, 1.0);
         soloud.setWaveformFreq(sine, freq * 2);
         soloud.setWaveformSuperWave(sine, false);
 
