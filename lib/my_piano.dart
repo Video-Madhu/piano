@@ -1,6 +1,6 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:get/get.dart';
 import 'package:piano/controller/piano_controller.dart';
 
@@ -37,44 +37,50 @@ const List<String> _noteNames = [
 ];
 
 final Map<LogicalKeyboardKey, int> _keyMap = {
+  // Octave 3 — white keys
   LogicalKeyboardKey.keyQ: 0,
-  LogicalKeyboardKey.digit2: 1,
   LogicalKeyboardKey.keyW: 2,
-  LogicalKeyboardKey.digit3: 3,
   LogicalKeyboardKey.keyE: 4,
   LogicalKeyboardKey.keyR: 5,
-  LogicalKeyboardKey.digit5: 6,
   LogicalKeyboardKey.keyT: 7,
-  LogicalKeyboardKey.digit6: 8,
   LogicalKeyboardKey.keyY: 9,
-  LogicalKeyboardKey.digit7: 10,
   LogicalKeyboardKey.keyU: 11,
+  // Octave 3 — black keys
+  LogicalKeyboardKey.digit2: 1,
+  LogicalKeyboardKey.digit3: 3,
+  LogicalKeyboardKey.digit5: 6,
+  LogicalKeyboardKey.digit6: 8,
+  LogicalKeyboardKey.digit7: 10,
+  // Octave 4 — white keys
   LogicalKeyboardKey.keyI: 12,
-  LogicalKeyboardKey.digit9: 13,
   LogicalKeyboardKey.keyO: 14,
-  LogicalKeyboardKey.digit0: 15,
   LogicalKeyboardKey.keyP: 16,
   LogicalKeyboardKey.keyZ: 17,
-  LogicalKeyboardKey.keyS: 18,
   LogicalKeyboardKey.keyX: 19,
-  LogicalKeyboardKey.keyD: 20,
   LogicalKeyboardKey.keyC: 21,
-  LogicalKeyboardKey.keyF: 22,
   LogicalKeyboardKey.keyV: 23,
+  // Octave 4 — black keys
+  LogicalKeyboardKey.digit9: 13,
+  LogicalKeyboardKey.digit0: 15,
+  LogicalKeyboardKey.keyS: 18,
+  LogicalKeyboardKey.keyD: 20,
+  LogicalKeyboardKey.keyF: 22,
+  // Octave 5 — white keys
   LogicalKeyboardKey.keyB: 24,
-  LogicalKeyboardKey.keyH: 25,
   LogicalKeyboardKey.keyN: 26,
-  LogicalKeyboardKey.keyJ: 27,
   LogicalKeyboardKey.keyM: 28,
   LogicalKeyboardKey.comma: 29,
-  LogicalKeyboardKey.keyL: 30,
   LogicalKeyboardKey.period: 31,
-  LogicalKeyboardKey.semicolon: 32,
   LogicalKeyboardKey.slash: 33,
+  // Octave 5 — black keys
+  LogicalKeyboardKey.keyH: 25,
+  LogicalKeyboardKey.keyJ: 27,
+  LogicalKeyboardKey.keyL: 30,
+  LogicalKeyboardKey.semicolon: 32,
   LogicalKeyboardKey.quote: 34,
 };
 
-// ── Key layout helpers ────────────────────────────────────────────────────────
+// ── Key layout constants ──────────────────────────────────────────────────────
 
 const double _whiteW = 44;
 const double _whiteH = 200;
@@ -82,28 +88,33 @@ const double _blackW = 28;
 const double _blackH = 124;
 const int _totalNotes = 36;
 
-/// Precomputed left-edge X positions for all 36 keys
-List<double> _buildKeyOffsets() {
+/// Precomputed left-edge X position for every note index.
+final List<double> _keyOffsets = () {
   final offsets = List<double>.filled(_totalNotes, 0);
   int whiteCount = 0;
   for (int i = 0; i < _totalNotes; i++) {
     if (_isBlack[i % 12]) {
-      // Black key: centered over the gap between its two white neighbours
-      offsets[i] = (whiteCount * _whiteW) - _blackW / 2;
+      offsets[i] = (whiteCount * _whiteW) - (_blackW / 2);
     } else {
       offsets[i] = whiteCount * _whiteW;
       whiteCount++;
     }
   }
   return offsets;
-}
+}();
 
-final _keyOffsets = _buildKeyOffsets();
+/// Total keyboard width based on white key count.
+final double _totalKeyboardWidth = () {
+  int whites = 0;
+  for (int i = 0; i < _totalNotes; i++) {
+    if (!_isBlack[i % 12]) whites++;
+  }
+  return whites * _whiteW;
+}();
 
-/// Given an x position on the keyboard, returns the note index.
-/// Black keys take priority (they're on top).
+/// Hit-test: returns note index at (x, y). Black keys take priority.
 int? _hitTest(double x, double y) {
-  // First check black keys (they're visually on top)
+  // Black keys first (visually on top)
   for (int i = 0; i < _totalNotes; i++) {
     if (!_isBlack[i % 12]) continue;
     final left = _keyOffsets[i];
@@ -120,15 +131,7 @@ int? _hitTest(double x, double y) {
   return null;
 }
 
-int _whiteKeyCount() {
-  int count = 0;
-  for (int i = 0; i < _totalNotes; i++) {
-    if (!_isBlack[i % 12]) count++;
-  }
-  return count;
-}
-
-// ── Entry ─────────────────────────────────────────────────────────────────────
+// ── Root widget ───────────────────────────────────────────────────────────────
 
 class MyPiano extends StatelessWidget {
   const MyPiano({super.key});
@@ -145,7 +148,7 @@ class MyPiano extends StatelessWidget {
         onKeyEvent: (event) {
           final idx = _keyMap[event.logicalKey];
           if (idx == null) return;
-          if (event is KeyDownEvent) ctrl.play(idx);
+          if (event is KeyDownEvent) ctrl.play(idx, velocity: 0.75);
           if (event is KeyUpEvent) ctrl.stop(idx);
         },
         child: Column(
@@ -207,15 +210,7 @@ class _ControlBar extends StatelessWidget {
             ),
             const SizedBox(width: 24),
 
-            _CtrlBtn(
-              icon: Icons.waves,
-              label: 'SOUND',
-              active: false,
-              onTap: () => _pickWaveform(context, ctrl),
-            ),
-            const SizedBox(width: 16),
-
-            // Volume
+            // Volume slider
             SizedBox(
               width: 110,
               child: Column(
@@ -240,6 +235,7 @@ class _ControlBar extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
+            // Sustain toggle
             _CtrlBtn(
               icon: Icons.music_note,
               label: 'SUSTAIN',
@@ -248,6 +244,7 @@ class _ControlBar extends StatelessWidget {
             ),
             const SizedBox(width: 16),
 
+            // Key labels toggle
             _CtrlBtn(
               icon: Icons.keyboard,
               label: 'KEYS',
@@ -257,7 +254,7 @@ class _ControlBar extends StatelessWidget {
 
             const Spacer(),
 
-            // Waveform chip
+            // Octave label
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -266,7 +263,7 @@ class _ControlBar extends StatelessWidget {
                 border: Border.all(color: Colors.blue.withOpacity(0.3)),
               ),
               child: Text(
-                ctrl.waveForm.value.name.toUpperCase(),
+                'OCT 3–5',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.blue[300],
@@ -279,67 +276,6 @@ class _ControlBar extends StatelessWidget {
       ),
     );
   }
-
-  void _pickWaveform(BuildContext context, PianoController ctrl) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A2E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Obx(
-        () => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Select waveform',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: WaveForm.values.map((wf) {
-                  final selected = wf == ctrl.waveForm.value;
-                  return GestureDetector(
-                    onTap: () {
-                      ctrl.setWaveForm(wf);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Colors.blue.withOpacity(0.25)
-                            : Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: selected ? Colors.blue : Colors.white12,
-                        ),
-                      ),
-                      child: Text(
-                        wf.name,
-                        style: TextStyle(
-                          color: selected ? Colors.blue[300] : Colors.white60,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _CtrlBtn extends StatelessWidget {
@@ -347,6 +283,7 @@ class _CtrlBtn extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
+
   const _CtrlBtn({
     required this.icon,
     required this.label,
@@ -388,26 +325,54 @@ class _PianoKeyboard extends StatefulWidget {
 }
 
 class _PianoKeyboardState extends State<_PianoKeyboard> {
-  int? _lastDragIndex; // tracks which key the pointer is currently over
+  int? _lastDragIndex;
+
+  // Velocity tracking per pointer
+  final Map<int, Offset> _lastPointerPos = {};
+  final Map<int, DateTime> _lastPointerTime = {};
 
   void _onPointerDown(PointerDownEvent e) {
     final idx = _hitTest(e.localPosition.dx, e.localPosition.dy);
     if (idx == null) return;
+
+    _lastPointerPos[e.pointer] = e.localPosition;
+    _lastPointerTime[e.pointer] = DateTime.now();
+
+    // Use hardware pressure if available, else default to 0.7
+    final velocity = e.pressureMax > 0
+        ? (e.pressure / e.pressureMax).clamp(0.1, 1.0)
+        : 0.7;
+
     _lastDragIndex = idx;
-    widget.ctrl.play(idx);
+    widget.ctrl.play(idx, velocity: velocity);
   }
 
   void _onPointerMove(PointerMoveEvent e) {
     final idx = _hitTest(e.localPosition.dx, e.localPosition.dy);
-    if (idx == _lastDragIndex) return; // same key, do nothing
-    // Left old key
+
+    // Compute velocity from pointer speed (pixels/ms)
+    double velocity = 0.7;
+    final lastPos = _lastPointerPos[e.pointer];
+    final lastTime = _lastPointerTime[e.pointer];
+    if (lastPos != null && lastTime != null) {
+      final dt = DateTime.now().difference(lastTime).inMicroseconds / 1000.0;
+      if (dt > 0) {
+        final dist = (e.localPosition - lastPos).distance;
+        velocity = (dist / dt / 15.0).clamp(0.1, 1.0);
+      }
+    }
+    _lastPointerPos[e.pointer] = e.localPosition;
+    _lastPointerTime[e.pointer] = DateTime.now();
+
+    if (idx == _lastDragIndex) return;
     if (_lastDragIndex != null) widget.ctrl.stop(_lastDragIndex!);
-    // Entered new key
-    if (idx != null) widget.ctrl.play(idx);
+    if (idx != null) widget.ctrl.play(idx, velocity: velocity);
     _lastDragIndex = idx;
   }
 
   void _onPointerUp(PointerUpEvent e) {
+    _lastPointerPos.remove(e.pointer);
+    _lastPointerTime.remove(e.pointer);
     if (_lastDragIndex != null) {
       widget.ctrl.stop(_lastDragIndex!);
       _lastDragIndex = null;
@@ -415,6 +380,8 @@ class _PianoKeyboardState extends State<_PianoKeyboard> {
   }
 
   void _onPointerCancel(PointerCancelEvent e) {
+    _lastPointerPos.remove(e.pointer);
+    _lastPointerTime.remove(e.pointer);
     if (_lastDragIndex != null) {
       widget.ctrl.stop(_lastDragIndex!);
       _lastDragIndex = null;
@@ -423,33 +390,30 @@ class _PianoKeyboardState extends State<_PianoKeyboard> {
 
   @override
   Widget build(BuildContext context) {
-    final totalWidth = _whiteKeyCount() * _whiteW;
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Listener(
-        // Captures ALL pointer events even when dragging fast
         onPointerDown: _onPointerDown,
         onPointerMove: _onPointerMove,
         onPointerUp: _onPointerUp,
         onPointerCancel: _onPointerCancel,
         child: SizedBox(
-          width: totalWidth,
+          width: _totalKeyboardWidth,
           height: _whiteH,
           child: Obx(() {
             final active = widget.ctrl.activeKeys.toSet();
             final showLabels = widget.ctrl.showKeyLabels.value;
-            return Stack(children: _buildKeys(active, showLabels));
+            return Stack(children: _buildAllKeys(active, showLabels));
           }),
         ),
       ),
     );
   }
 
-  List<Widget> _buildKeys(Set<int> active, bool showLabels) {
+  List<Widget> _buildAllKeys(Set<int> active, bool showLabels) {
     final widgets = <Widget>[];
 
-    // White keys first (bottom layer)
+    // White keys — bottom layer
     int whiteCount = 0;
     for (int i = 0; i < _totalNotes; i++) {
       if (_isBlack[i % 12]) continue;
@@ -468,7 +432,7 @@ class _PianoKeyboardState extends State<_PianoKeyboard> {
       whiteCount++;
     }
 
-    // Black keys on top
+    // Black keys — top layer
     for (int i = 0; i < _totalNotes; i++) {
       if (!_isBlack[i % 12]) continue;
       widgets.add(
@@ -489,7 +453,7 @@ class _PianoKeyboardState extends State<_PianoKeyboard> {
   }
 }
 
-// ── Pure display widget — no gesture handling ─────────────────────────────────
+// ── Pure display key widget — no gesture handling ─────────────────────────────
 
 class _KeyWidget extends StatelessWidget {
   final int index;
@@ -506,16 +470,18 @@ class _KeyWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color bg;
+    final Color bg;
     if (isBlack) {
       bg = isActive ? const Color(0xFF5A4FCF) : const Color(0xFF111122);
     } else {
       bg = isActive ? const Color(0xFFD4CBFF) : Colors.white;
     }
 
-    final shortcutKey = _keyMap.entries
+    // Find keyboard shortcut label for this note index
+    final shortcutLabel = _keyMap.entries
         .where((e) => e.value == index)
         .map((e) => e.key.keyLabel)
+        .where((label) => label.length == 1)
         .firstOrNull;
 
     return Container(
@@ -543,7 +509,8 @@ class _KeyWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          if (showLabel && shortcutKey != null && shortcutKey.length == 1)
+          // Keyboard shortcut badge
+          if (showLabel && shortcutLabel != null)
             Container(
               margin: const EdgeInsets.only(bottom: 4),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -554,7 +521,7 @@ class _KeyWidget extends StatelessWidget {
                 borderRadius: BorderRadius.circular(3),
               ),
               child: Text(
-                shortcutKey.toUpperCase(),
+                shortcutLabel.toUpperCase(),
                 style: TextStyle(
                   fontSize: 10,
                   color: isBlack ? Colors.white54 : Colors.black45,
@@ -562,6 +529,7 @@ class _KeyWidget extends StatelessWidget {
                 ),
               ),
             ),
+          // Note name
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
